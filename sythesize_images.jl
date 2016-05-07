@@ -1,20 +1,18 @@
-# using JudithExcalibur
+import YAML
+config = YAML.load(open("config.yaml"))
 
-nincl = 10
-nchan = 10
+# Points at which to create images
+parameters = readdlm("parameters.dat")
 
-# The list of inclinations we want to create
-incls = linspace(140., 158., nincl)
+parnames = config["emulator"]["parameters"]
 
-# Go through each of these and plot images, saving with the filename `image_140.out` where 140 is the inclination.
+# Go through each of these and plot images, saving with the filename `image_001.out` etc,
+# where each index corresponds to the line number in the parameters file.
 
 using DiskJockey.constants
 using DiskJockey.model
 using DiskJockey.visibilities
 using HDF5
-
-import YAML
-config = YAML.load(open("config.yaml"))
 
 grd = config["grid"]
 grid = Grid(grd)
@@ -28,21 +26,23 @@ transition = config["transition"]
 lam0 = lam0s[species*transition]
 model = config["model"]
 
-# Instead of reading in wavelengths from data file, use those we've specified
-# Spanning the central 3 chanels of DM Tau, but w/ high resolution.
-freqs = linspace(2.3052281389490067e11, 2.3052365978614038e11, nchan)
-# Convert from Hz to wavelengths in μm
-lams = cc ./freqs * 1e4 # [μm]
+write_grid("", grid)
 
-# Doppler shift the dataset wavelength according to the velocity in the parameter file
-beta = vel/c_kms # relativistic Doppler formula
-shift_lams =  lams .* sqrt((1. - beta) / (1. + beta)) # [microns]
+# Iterate over rows
+for i in 1:size(parameters,1)
+    row = parameters[i,:]
 
-# Now write this out
-write_lambda(shift_lams, "")
+    println("processing ", row)
 
-for incl in incls
-    # For each inclination, update pars.incl
+    # Frequency will always be the first parameter
+    nu, incl = row
+
+    # Write out the Frequency to synthesize at
+    lam = cc./(nu * 1e9) * 1e4 # [μm]
+
+    write_lambda([lam], "")
+
+    # Update the parameters
     pars.incl = incl
 
     # Write the RADMC input files
@@ -57,8 +57,9 @@ for incl in incls
     toc()
 
     # Copy image.out to a new filename
-    out = @sprintf("image_%.0f.out", pars.incl)
-    cp("image.out", out)
+    out = @sprintf("image_%3.3i.out", i)
+    cp("image.out", "images/" * out, remove_destination=true)
     println("Finished ", pars)
+
 
 end
