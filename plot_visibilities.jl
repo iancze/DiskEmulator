@@ -60,5 +60,3 @@ ax[2][:set_ylabel]("Real")
 ax[3][:set_ylabel]("Imag")
 
 plt[:savefig]("visibilities.png", dpi=600)
-
-fig, ax = plt[:subplots](nrows=2, figsize=(6,6), sharex=true)
